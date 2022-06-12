@@ -1,0 +1,61 @@
+---
+- name: SSH hardening & security
+  hosts: all
+  become: true
+
+  vars:
+    - banner_text: "This is a private server!\nAll connection are monitored and recorded\n"
+
+    - hardening:
+      - regexp: '^PermitRootLogin'
+        line: 'PermitRootLogin no'
+      - regexp: '^PermitEmptyPasswords'
+        line: 'PermitEmptyPasswords no'
+      - regexp: '^Protocol'
+        line: 'Protocol 2'
+      - regexp: '^ClientAliveInterval'
+        line: 'ClientAliveInterval 300'
+      - regexp: '^ClientAliveCountMax'
+        line: 'ClientAliveCountMax 2'
+      - regexp: '^X11Forwarding'
+        line: 'X11Forwarding no'
+      - regexp: '^useDNS'
+        line: 'useDNS yes'
+      - regexp: '^IgnoreRhosts'
+        line: 'IgnoreRhosts yes'
+      - regexp: '^HostBasedAuthentication'
+        line: 'HostBasedAuthentication no'
+      - regexp: '^HostKeyAlgorithms'
+        line: 'HostKeyAlgorithms ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,ssh-rsa'
+
+      - regexp: '^KexAlgorithms'
+        line: 'KexAlgorithms ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group14-sha1,diffie-hellman-group-exchange-sha256'
+
+      - regexp: '^MACs'
+        line: 'MACs hmac-sha2-256,hmac-sha2-512,hmac-sha1'
+
+      - regexp: '^Banner'
+        line: 'Banner /etc/issue'
+
+  tasks:
+   - name: Copy Banner text
+     copy:
+       content: "{{ banner_text }}"
+       dest: /etc/issue
+
+   - name: sshd config modify
+     lineinfile:
+       regexp: "{{ item.regexp }}"
+       line: "{{ item.line }}"
+       path: /etc/ssh/sshd_config
+       validate: sshd -t -f %s
+     loop: "{{ hardening }}"
+     notify: restart sshd service
+
+
+  handlers:
+    - name: restart sshd service
+      service:
+        name: sshd
+        state: restarted
+
